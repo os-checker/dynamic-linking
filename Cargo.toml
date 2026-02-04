@@ -1,0 +1,12 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+exports = { path = "./exports" }
+libloading = "0.9.0"
+rubicon = "3.4.9"
+
+[workspace]
+members = ["exports"]

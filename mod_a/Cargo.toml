@@ -1,0 +1,19 @@
+[package]
+name = "mod_a"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tokio = { git = "https://github.com/bearcove/tokio", branch = "rubicon-3.x-bis", features = [
+  "process",
+  "rt",
+  "rt-multi-thread",
+  "sync",
+] }
+rubicon = { version = "3.4.9", features = ["import-globals"] }
+dynify = "0.1.2"
+
+[workspace]
