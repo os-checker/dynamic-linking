@@ -28,7 +28,7 @@ async fn run_mod_a() {
     println!("main task is spawned");
 
     let task = unsafe {
-        mod_a
+        *mod_a
             .get::<unsafe fn() -> Pin<Box<dyn 'static + Send + Future<Output = ()>>>>(b"task\0")
             .unwrap()
     };
@@ -37,31 +37,26 @@ async fn run_mod_a() {
     println!("task is running");
 
     let hello = unsafe {
-        mod_a
+        *mod_a
             .get::<unsafe fn() -> Fut<String>>(b"async_hello\0")
             .unwrap()
     };
-    tokio::spawn({
-        let hello = hello.clone();
-        async move {
-            unsafe {
-                let mut stack = [MaybeUninit::<u8>::uninit(); 16];
-                let mut heap = Vec::<MaybeUninit<u8>>::new();
-                let hello = hello();
-                dbg!(hello.layout());
-                match hello.try_init(&mut stack) {
+    tokio::spawn(async move {
+        let mut stack = [MaybeUninit::<u8>::uninit(); 16];
+        let mut heap = Vec::<MaybeUninit<u8>>::new();
+        let hello = unsafe { hello() };
+        dbg!(hello.layout());
+        match hello.try_init(&mut stack) {
+            Ok(fut) => _ = dbg!(fut.await),
+            Err((this, _)) => {
+                println!("Initialized on the heap");
+                match this.try_init(&mut heap) {
                     Ok(fut) => _ = dbg!(fut.await),
-                    Err((this, _)) => {
-                        println!("Initialized on the heap");
-                        match this.try_init(&mut heap) {
-                            Ok(fut) => _ = dbg!(fut.await),
-                            Err(_) => panic!("Failed to init on heap"),
-                        }
-                    }
+                    Err(_) => panic!("Failed to init on heap"),
                 }
-                dbg!(heap.len(), heap.capacity());
             }
         }
+        dbg!(heap.len(), heap.capacity());
     });
     println!("hello is running");
     tokio::spawn(async move {
@@ -74,38 +69,38 @@ async fn run_mod_a() {
         );
     });
 
-    unsafe {
-        let take_string = mod_a
+    let take_string = unsafe {
+        *mod_a
             .get::<unsafe fn(String) -> Fn!(String => DynFut<String>)>(b"take_string\0")
-            .unwrap();
-        tokio::spawn({
-            let take_string = take_string.clone();
-            async move {
-                let mut stack = [MaybeUninit::<u8>::uninit(); 32];
-                let mut heap = Vec::<MaybeUninit<u8>>::new();
-                let take_string = take_string("hello".to_owned()).init2(&mut stack, &mut heap);
-                dbg!(take_string.await);
-            }
-        });
-        tokio::spawn(async move {
-            let mut buf = FutBuffer::<32>::new();
-            dbg!(
-                take_string("hi".to_owned()).init(&mut buf).await,
-                buf.spilled(),
-                buf.capacity(),
-                buf.len()
-            );
-        });
+            .unwrap()
+    };
+    tokio::spawn(async move {
+        let mut stack = [MaybeUninit::<u8>::uninit(); 32];
+        let mut heap = Vec::<MaybeUninit<u8>>::new();
+        let fut_take_string =
+            unsafe { take_string("hello".to_owned()) }.init2(&mut stack, &mut heap);
+        dbg!(fut_take_string.await);
+    });
+    tokio::spawn(async move {
+        let mut buf = FutBuffer::<32>::new();
+        dbg!(
+            unsafe { take_string("hi".to_owned()) }.init(&mut buf).await,
+            buf.spilled(),
+            buf.capacity(),
+            buf.len()
+        );
+    });
 
-        let concat = mod_a
+    let concat = unsafe {
+        *mod_a
             .get::<unsafe fn(String, String) -> Fn!(String, String => DynFut<String>)>(b"concat\0")
-            .unwrap();
-        tokio::spawn(async move {
-            let mut stack = [MaybeUninit::<u8>::uninit(); 32];
-            let mut heap = Vec::<MaybeUninit<u8>>::new();
-            let concat =
-                concat("hello".to_owned(), " world".to_owned()).init2(&mut stack, &mut heap);
-            dbg!(concat.await);
-        });
-    }
+            .unwrap()
+    };
+    tokio::spawn(async move {
+        let mut stack = [MaybeUninit::<u8>::uninit(); 32];
+        let mut heap = Vec::<MaybeUninit<u8>>::new();
+        let concat =
+            unsafe { concat("hello".to_owned(), " world".to_owned()) }.init2(&mut stack, &mut heap);
+        dbg!(concat.await);
+    });
 }
