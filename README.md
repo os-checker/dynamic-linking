@@ -14,7 +14,8 @@ https://github.com/rodrimati1992/abi_stable_crates
 
 https://doc.rust-lang.org/reference/linkage.html
 
-https://en.wikipedia.org/wiki/Dynamic_linker
+
+[LWN: A look at dynamic linking (2024)](https://en.wikipedia.org/wiki/Dynamic_linker)
 
 ## Miri 无法分析动态库
 

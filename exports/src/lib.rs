@@ -1,4 +1,9 @@
 pub use tokio;
 
 pub use dynify;
-pub type Fut<T = ()> = ::dynify::Fn!(=> dyn Send + Future<Output = T>);
+pub use dynify::Fn;
+
+pub type DynFut<T = ()> = dyn Send + Future<Output = T>;
+
+/// The return value of a function that takes no arguemnts.
+pub type Fut<T = ()> = Fn!(=> DynFut<T>);
