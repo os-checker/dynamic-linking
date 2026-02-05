@@ -1,14 +1,17 @@
-use exports::{DynFut, tokio};
 use exports::{
-    Fn, Fut,
+    DynFut, Fn, Fut, FutBuffer,
     dynify::{Dynify, PinConstruct},
+    tokio,
 };
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 
 #[tokio::main(worker_threads = 4)]
 async fn main() {
-    run_mod_a().await
+    run_mod_a().await;
+
+    std::thread::sleep(std::time::Duration::new(1, 0));
+    println!("done");
 }
 
 async fn run_mod_a() {
@@ -38,36 +41,60 @@ async fn run_mod_a() {
             .get::<unsafe fn() -> Fut<String>>(b"async_hello\0")
             .unwrap()
     };
-    tokio::spawn(async move {
-        unsafe {
-            let mut stack = [MaybeUninit::<u8>::uninit(); 16];
-            let mut heap = Vec::<MaybeUninit<u8>>::new();
-            let hello = hello();
-            dbg!(hello.layout());
-            match hello.try_init(&mut stack) {
-                Ok(fut) => _ = dbg!(fut.await),
-                Err((this, _)) => {
-                    println!("Initialized on the heap");
-                    match this.try_init(&mut heap) {
-                        Ok(fut) => _ = dbg!(fut.await),
-                        Err(_) => panic!("Failed to init on heap"),
+    tokio::spawn({
+        let hello = hello.clone();
+        async move {
+            unsafe {
+                let mut stack = [MaybeUninit::<u8>::uninit(); 16];
+                let mut heap = Vec::<MaybeUninit<u8>>::new();
+                let hello = hello();
+                dbg!(hello.layout());
+                match hello.try_init(&mut stack) {
+                    Ok(fut) => _ = dbg!(fut.await),
+                    Err((this, _)) => {
+                        println!("Initialized on the heap");
+                        match this.try_init(&mut heap) {
+                            Ok(fut) => _ = dbg!(fut.await),
+                            Err(_) => panic!("Failed to init on heap"),
+                        }
                     }
                 }
+                dbg!(heap.len(), heap.capacity());
             }
-            dbg!(heap.len(), heap.capacity());
         }
     });
     println!("hello is running");
+    tokio::spawn(async move {
+        let mut buf = FutBuffer::<16>::new();
+        dbg!(
+            unsafe { hello() }.init(&mut buf).await,
+            buf.spilled(),
+            buf.capacity(),
+            buf.len()
+        );
+    });
 
     unsafe {
         let take_string = mod_a
             .get::<unsafe fn(String) -> Fn!(String => DynFut<String>)>(b"take_string\0")
             .unwrap();
+        tokio::spawn({
+            let take_string = take_string.clone();
+            async move {
+                let mut stack = [MaybeUninit::<u8>::uninit(); 32];
+                let mut heap = Vec::<MaybeUninit<u8>>::new();
+                let take_string = take_string("hello".to_owned()).init2(&mut stack, &mut heap);
+                dbg!(take_string.await);
+            }
+        });
         tokio::spawn(async move {
-            let mut stack = [MaybeUninit::<u8>::uninit(); 32];
-            let mut heap = Vec::<MaybeUninit<u8>>::new();
-            let take_string = take_string("hello".to_owned()).init2(&mut stack, &mut heap);
-            dbg!(take_string.await);
+            let mut buf = FutBuffer::<32>::new();
+            dbg!(
+                take_string("hi".to_owned()).init(&mut buf).await,
+                buf.spilled(),
+                buf.capacity(),
+                buf.len()
+            );
         });
 
         let concat = mod_a
@@ -81,7 +108,4 @@ async fn run_mod_a() {
             dbg!(concat.await);
         });
     }
-
-    std::thread::sleep(std::time::Duration::new(1, 0));
-    println!("done");
 }
