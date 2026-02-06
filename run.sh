@@ -2,6 +2,8 @@
 
 set -eoux pipefail
 
+# export RUSTFLAGS="-Cprefer-dynamic"
+
 pushd mod_a
 cargo clean
 cargo b
