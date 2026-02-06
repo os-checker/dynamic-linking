@@ -197,7 +197,9 @@ https://doc.rust-lang.org/reference/linkage.html
 
 [LWN: A look at dynamic linking (2024)](https://en.wikipedia.org/wiki/Dynamic_linker)
 
-## Miri 无法分析动态库
+## Miri 无法分析共享库
+
+Miri 不能识别 Rust 动态库依赖：
 
 ```
 rubicon/test-crates/samplebin $ cargo miri run
@@ -205,3 +207,14 @@ Preparing a sysroot for Miri (target: aarch64-unknown-linux-gnu)... done
 error: cannot produce dylib for `exports v0.1.0 (./rubicon/test-crates/exports)` as the target
 `aarch64-unknown-linux-gnu` does not support these crate types
 ```
+
+但对于 C 共享库 (cdylib)，Miri 提供 `-Zmiri-native-lib=<path to a shared object file or folder>`
+参数，支持 FFI 调用，但不支持 FFI 上的任何代码检查（使得内存分析存在 unsound 问题）。而且实际功能受限：比如仅限
+Unix 系统、只支持整数和指针类型的参数和返回值。
+
+相关链接：
+* tracking issue: [Support native FFI calls via libffi](https://github.com/rust-lang/miri/issues/11)
+* 最初的设计文档：[Miri C FFI Extension](https://hackmd.io/eFY7Jyl6QGeGKQlJvBp6pw)
+* 改进 FFI 内存跟踪：[(more) precisely track memory accesses and allocations across FFI](https://github.com/rust-lang/miri/pull/4326)
+
+
