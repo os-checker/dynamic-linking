@@ -51,6 +51,35 @@ Rubicon 作为一种 Rust 共享库的工作范式，做了以下事情：
 
 ## 异步 FFI
 
+如果整个系统只有 Rust 代码，那么 rubicon 范式完全不需要 FFI 就能工作。因为 Rust 动态库 (dylib) 可以被自动加载，也可以被手动加载。
+
+但如果你需要某个模块与非 Rust 代码交互，或者模块是非 Rust 编写的，那么确定的 ABI 是必要的。
+
+Rust 以两种方式提供稳定的 ABI：
+* `repr(C)` 被放置在 struct/enum/union 上，并可能和其他修饰符一起控制其内存布局，其含义被 [Reference][c-layout] 指定。
+* [`unsafe extern "C"`] 修饰函数，表示该函数遵循 C 的调用约定。
+
+[c-layout]: https://doc.rust-lang.org/reference/type-layout.html#the-c-representation
+
+一些具体的标准库的类型的布局可能被单独记录，比如 [`UnsafeCell`]、[`NonZero`]，因此 FFI 涉及的每个 Rust 类型都需要逐一确认布局情况。
+
+[`UnsafeCell`]: https://doc.rust-lang.org/std/cell/struct.UnsafeCell.html#memory-layout
+[`NonZero`]: https://doc.rust-lang.org/std/num/struct.NonZero.html
+
+此外，[`crabi`] 也是一个将来的可能，它在 C ABI 的基础上提供一些高级类型的稳定的内存布局规范，但目前代码尚未合并到编译器内。
+
+[`crabi`]: https://github.com/rust-lang/rust/pull/105586
+
+FFI 的设计取决于传递什么，对于异步代码，通常传递用于唤醒回调事件，以及就绪的数据。
+
+[这里][rust-async-ffi] AI 总结得很好。如果在 Rust 和 C 之间 FFI，有很多设计选择。如果在
+Rust 模块之间传递异步任务，那么 [async-ffi] 提供了稳定布局的 Future/Poll。
+
+[rust-async-ffi]: https://github.com/zjp-CN/os-notes/issues/1
+[async-ffi]: https://github.com/oxalica/async-ffi
+
+
+
 ## 一些命令
 
 ```bash
