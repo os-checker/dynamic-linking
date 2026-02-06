@@ -17,3 +17,5 @@ tokio = { git = "https://github.com/bearcove/tokio", branch = "rubicon-3.x-bis",
 rubicon = { version = "3.4.9", features = ["export-globals"] }
 dynify = { version = "0.1.2", features = ["smallvec"] }
 smallvec = "1.15.1"
+async-ffi = { version = "0.5.0", features = ["macros"] }
+# libc = "0.2.180"

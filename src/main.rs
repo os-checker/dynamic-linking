@@ -1,20 +1,22 @@
-use exports::{
-    DynFut, Fn, Fut, FutBuffer,
-    dynify::{Dynify, PinConstruct},
-    tokio,
-};
-use std::mem::MaybeUninit;
-use std::pin::Pin;
+use exports::tokio;
 
 #[tokio::main(worker_threads = 4)]
 async fn main() {
     run_mod_a().await;
+    run_mod_c().await;
 
     std::thread::sleep(std::time::Duration::new(1, 0));
     println!("done");
 }
 
 async fn run_mod_a() {
+    use exports::{
+        DynFut, Fn, Fut, FutBuffer,
+        dynify::{Dynify, PinConstruct},
+    };
+    use std::mem::MaybeUninit;
+    use std::pin::Pin;
+
     let mod_a = unsafe { libloading::Library::new("./mod_a/target/debug/libmod_a.so").unwrap() };
     println!("mod_a is loaded");
     let mod_a = Box::leak(Box::new(mod_a));
@@ -103,4 +105,19 @@ async fn run_mod_a() {
             unsafe { concat("hello".to_owned(), " world".to_owned()) }.init2(&mut stack, &mut heap);
         dbg!(concat.await);
     });
+}
+
+async fn run_mod_c() {
+    use exports::async_ffi;
+
+    let mod_c = unsafe { libloading::Library::new("./mod_c/libmod_c.so").unwrap() };
+    println!("mod_c is loaded");
+    let mod_c = Box::leak(Box::new(mod_c));
+
+    type Task = unsafe extern "C" fn(u32, u32) -> async_ffi::FfiFuture<u32>;
+
+    let plugin_run: Task = unsafe { *mod_c.get(b"plugin_run\0").unwrap() };
+    unsafe {
+        dbg!(plugin_run(1, 2).await);
+    }
 }
