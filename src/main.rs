@@ -3,6 +3,7 @@ use exports::tokio;
 #[tokio::main(worker_threads = 4)]
 async fn main() {
     run_mod_a().await;
+    run_mod_b().await;
     run_mod_c().await;
 
     std::thread::sleep(std::time::Duration::new(1, 0));
@@ -119,5 +120,20 @@ async fn run_mod_c() {
     let plugin_run: Task = unsafe { *mod_c.get(b"plugin_run\0").unwrap() };
     unsafe {
         dbg!(plugin_run(1, 2).await);
+    }
+}
+
+async fn run_mod_b() {
+    use exports::async_ffi;
+
+    let mod_c = unsafe { libloading::Library::new("./mod_b/target/debug/libmod_b.so").unwrap() };
+    println!("mod_c is loaded");
+    let mod_c = Box::leak(Box::new(mod_c));
+
+    type Task = unsafe extern "C" fn(i32, i32) -> async_ffi::FfiFuture<i32>;
+
+    let async_add: Task = unsafe { *mod_c.get(b"async_add\0").unwrap() };
+    unsafe {
+        dbg!(async_add(1, 2).await);
     }
 }
