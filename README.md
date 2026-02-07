@@ -30,7 +30,13 @@ tokio 库，调度器需要全局状态管理，静态变量使用一个符号�
 
 [rubicon]: https://github.com/bearcove/rubicon
 
-有两种方式加载共享库：
+Rust 可以生成两种共享库文件，由 `--crate-type` 指定：
+* `dylib` 是 Rust ABI 的动态库；
+* `cdylib` 是 C ABI 的动态库。
+
+[`--crate-type`]: https://doc.rust-lang.org/rustc/command-line-arguments.html#--crate-type-a-list-of-types-of-crates-for-the-compiler-to-emit
+
+操作系统有两种方式加载共享库：
 
 |          | 加载时机               | 如何加载                                   | 如何使用符号 (函数名、静态变量)                                           |
 |----------|------------------------|--------------------------------------------|---------------------------------------------------------------------------|
@@ -40,7 +46,7 @@ tokio 库，调度器需要全局状态管理，静态变量使用一个符号�
 > 注：其实还有一种自动加载共享库的方式，在查找 ELF 的 `DT_NEEDED` 共享库声明之前，内核会把 vDSO 放入 link map 中。而
 > vDSO 就是内核无条件在用户进程映射的某类特殊系统调用的共享库。
 >
-> 关于动态链接的工作流程见：[LWN: A look at dynamic linking (2024)](https://lwn.net/Articles/961117/)
+> 关于动态链接的工作流程介绍见：[LWN: A look at dynamic linking (2024)](https://lwn.net/Articles/961117/)
 
 Rubicon 作为一种 Rust 共享库的工作范式，做了以下事情：
 * 用特定的宏包装线程局部变量（由 `thread_local!` 定义） 和进程局部变量 (由 `static` 定义)，保证它们不会被
