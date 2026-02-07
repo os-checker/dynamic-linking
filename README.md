@@ -65,6 +65,7 @@ Rust 以两种方式提供稳定的 ABI：
 * [`unsafe extern "C"`] 修饰函数，表示该函数遵循 C 的调用约定。
 
 [c-layout]: https://doc.rust-lang.org/reference/type-layout.html#the-c-representation
+[`unsafe extern "C"`]: https://doc.rust-lang.org/reference/items/external-blocks.html#r-items.extern.abi.c
 
 一些具体的标准库的类型的布局可能被单独记录，比如 [`UnsafeCell`]、[`NonZero`]，因此 FFI 涉及的每个 Rust 类型都需要逐一确认布局情况。
 
@@ -123,7 +124,7 @@ error[E0432]: unresolved import `exports`
 
 ### Rust 的 Future 膨胀问题
 
-嵌套的 Future 在体积上尚未优化，因此内存不必要地太大。这也导致编译产物也会膨胀，执行效率未达到最优。
+嵌套的 Future 在体积上尚未优化，因此内存不必要地太大。这也导致编译产物膨胀，执行效率未达到最优。
 
 即便开启 size 优化，LLVM 的效果也不太奏效。可以说，Future 在这方面不是零成本抽象。
 
