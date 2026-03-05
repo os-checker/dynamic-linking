@@ -18,5 +18,5 @@
   font-size: 24px;
 }
 
-.dark a { color: oklch(0.82 0.12 230) !important; }
-.light a { color: oklch(0.60 0.16 230) !important; }
+.dark .slidev-layout a { color: oklch(0.82 0.12 230) !important; }
+.light .slidev-layout a { color: oklch(0.60 0.16 230) !important; }
