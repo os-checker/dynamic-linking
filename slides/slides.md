@@ -177,8 +177,8 @@ struct FfiFutureU32 async_add (uint32_t a, uint32_t b) {
 [笔记](https://github.com/os-checker/dynamic-linking?tab=readme-ov-file#%E5%BC%82%E6%AD%A5-ffi)
 
 * Why：异步数据结构需要保证明确的 ABI 吗？
-  * 内部细节可能无需保证 ABI
-  * 但对外接口需要稳定的 ABI
+  * 内部细节可能无需保证 ABI (dylib)
+  * 但对外接口需要稳定的 ABI (cdylib)
 
 ---
 
@@ -194,3 +194,22 @@ struct FfiFutureU32 async_add (uint32_t a, uint32_t b) {
       * stabby 和 abi_stable 提供完整的 Rust 类型稳定布局方案，包括 trait objects
 
 [crabi]: https://github.com/rust-lang/rust/pull/105586
+
+---
+
+# 异步 OS 资讯
+
+* [moss-kernel](https://github.com/hexagonal-sun/moss-kernel)
+  * 异步内核、模块化架构抽象层，并与 Linux 用户空间应用程序二进制兼容
+  * Moss 目前能够运行动态链接的 Arch Linux AArch64 用户空间，包括 bash、BusyBox、coreutils、ps、top 和 strace 等工具
+* [Xous](https://xous.dev/)：Rust 实现的消息传递微内核
+  * 安全高效的异步消息传递原语
+  * Rust 实现系统标准库
+  * 自主研发支持 MMU 的芯片
+* 将 Embassy 移植到 TockOS：[演讲](https://www.youtube.com/watch?v=HW8UALOtUnI) | [issue](https://github.com/tock/libtock-rs/issues/576)
+  * 目前实现了 embedded-hal-async （Rust 嵌入式工作组的异步硬件抽象层库） 的一些 async trait/方法，比如异步 GPIO、异步 I2C/SPI controller 等等
+  * 他们遇到两个问题：
+    * 异步任务的缓冲区释放问题：所有权+pin 缓解
+    * 希望统一同步和异步两种缓冲区：尚未解决；见 https://github.com/tock/design-explorations/pull/6
+* [Redox](https://www.redox-os.org/)：类 unix 微内核；正在实现类似 io_uring IO
+* VectorWare：[GPU 与异步](https://www.vectorware.com/blog/async-await-on-gpu/)
