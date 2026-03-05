@@ -39,6 +39,15 @@ async fn run_mod_a() {
     tokio::spawn(async move { unsafe { task().await } });
     println!("task is running");
 
+    let task = unsafe {
+        *mod_a
+            .get::<fn() -> Pin<Box<dyn 'static + Send + Future<Output = ()>>>>(b"task\0")
+            .unwrap()
+    };
+    println!("task is got again");
+    tokio::spawn(task());
+    println!("task is running again");
+
     let hello = unsafe {
         *mod_a
             .get::<unsafe fn() -> Fut<String>>(b"async_hello\0")
@@ -126,13 +135,13 @@ async fn run_mod_c() {
 async fn run_mod_b() {
     use exports::async_ffi;
 
-    let mod_c = unsafe { libloading::Library::new("./mod_b/target/debug/libmod_b.so").unwrap() };
+    let mod_b = unsafe { libloading::Library::new("./mod_b/target/debug/libmod_b.so").unwrap() };
     println!("mod_c is loaded");
-    let mod_c = Box::leak(Box::new(mod_c));
+    let mod_b = Box::leak(Box::new(mod_b));
 
     type Task = unsafe extern "C" fn(i32, i32) -> async_ffi::FfiFuture<i32>;
 
-    let async_add: Task = unsafe { *mod_c.get(b"async_add\0").unwrap() };
+    let async_add: Task = unsafe { *mod_b.get(b"async_add\0").unwrap() };
     unsafe {
         dbg!(async_add(1, 2).await);
     }
