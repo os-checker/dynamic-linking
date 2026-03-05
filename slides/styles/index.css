@@ -1,0 +1,22 @@
+/* 让链接内部的代码块去背景、继承颜色 */
+.slidev-layout a code {
+  background-color: transparent !important; /* 去除灰色背景 */
+  border: none !important;                  /* 去除边框 */
+  color: inherit !important;                /* 继承链接颜色 */
+  padding: 0 4px !important;                /* 稍微保留一点间距 */
+  font-weight: bold !important;             /* 加粗以示区别 */
+  text-decoration: inherit;                 /* 继承下划线 */
+}
+
+.slidev-layout h2 {
+  /* font-weight: bold; */
+  color: #d045d0;
+}
+
+.slidev-layout h3 {
+  font-weight: bold;
+  font-size: 24px;
+}
+
+.dark a { color: oklch(0.82 0.12 230) !important; }
+.light a { color: oklch(0.60 0.16 230) !important; }
