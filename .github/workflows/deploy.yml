@@ -26,22 +26,22 @@ jobs:
           node-version: 'lts/*'
 
       - name: Setup @antfu/ni
-        working-dir: slides
+        working-directory: slides
         run: npm i -g @antfu/ni
 
       - name: Install dependencies
-        working-dir: slides
+        working-directory: slides
         run: nci
 
       - name: Build
-        working-dir: slides
+        working-directory: slides
         run: nr build --base /${{github.event.repository.name}}/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
-        working-dir: slides
+        working-directory: slides
         with:
           path: dist
 
