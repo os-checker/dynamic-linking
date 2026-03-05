@@ -47,7 +47,7 @@ let run = unsafe { mod_a.get::<unsafe extern "C" fn()>(b"run\0").unwrap() };
 unsafe { run() };
 ```
 
-* `Library::get` 是 unsafe 函数：需保证函数签名类型正确
+* [`Library::get`] 是 unsafe 函数：需保证函数签名类型正确
 * `unsafe extern "C" fn()` 是自己引入的签名，需要自己保证 ABI
   * 类型签名上的 unsafe 修饰符不是必须，你可以这么写：
 
@@ -55,6 +55,8 @@ unsafe { run() };
 let run = unsafe { mod_a.get::</* 不声明为 unsafe */ extern "C" fn()>(b"run\0").unwrap() };
 run();
 ```
+
+[`Library::get`]: https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get
 
 ---
 
@@ -186,7 +188,9 @@ struct FfiFutureU32 async_add (uint32_t a, uint32_t b) {
     * 基本思路
       * `#[repr(C)]` 等修饰符控制内存布局
       * `unsafe extern "C" fn` 表示该函数遵循 C 的调用约定
-      * crabi 在 C ABI 的基础上提供一些高级类型的稳定的内存布局规范，但目前代码尚未合并到编译器内
+      * [crabi] 在 C ABI 的基础上提供一些高级类型的稳定的内存布局规范，但目前代码尚未合并到编译器内
     * 封装库
       * async-ffi 提供了稳定布局的 Future/Poll/Context，以及一个宏包装异步函数来返回这个 Future
       * stabby 和 abi_stable 提供完整的 Rust 类型稳定布局方案，包括 trait objects
+
+[crabi]: https://github.com/rust-lang/rust/pull/105586
