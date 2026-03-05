@@ -41,9 +41,8 @@ jobs:
         uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
-        working-directory: slides
         with:
-          path: dist
+          path: slides/dist
 
   deploy:
     environment:
