@@ -13,3 +13,7 @@ pub type FutBuffer<const N: usize> = smallvec::SmallVec<[std::mem::MaybeUninit<u
 
 pub use async_ffi;
 // pub use libc;
+
+pub fn noop_waker_ctx() -> std::task::Context<'static> {
+    std::task::Context::from_waker(std::task::Waker::noop())
+}

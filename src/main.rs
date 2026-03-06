@@ -1,5 +1,6 @@
 use exports::async_ffi::FfiFuture;
 use exports::{tokio, tokio::task::JoinSet};
+use std::{future::Future, pin::pin, task::Poll};
 
 #[tokio::main(worker_threads = 4)]
 async fn main() {
@@ -170,5 +171,27 @@ fn run_mod_b(set: &mut JoinSet<()>) {
     );
 
     let sleep: fn(u64) -> FfiFuture<()> = unsafe { *mod_b.get(b"sleep\0").unwrap() };
-    spawn(sleep(3), set);
+    spawn(sleep(1), set);
+
+    // Resolve the futures on the stack without wake-up, i.e. poll each till the result is Ready.
+    let cx = &mut exports::noop_waker_ctx();
+    let fut = pin!(sleep(2));
+    match fut.poll(cx) {
+        Poll::Ready(_) => println!("sleep: Ready"),
+        Poll::Pending => println!("sleep: Pending"),
+    }
+
+    let sleep_with_pending: fn(u64) -> FfiFuture<()> =
+        unsafe { *mod_b.get(b"sleep_with_pending\0").unwrap() };
+    spawn(sleep_with_pending(1), set);
+    let mut fut = pin!(sleep_with_pending(3));
+    loop {
+        match fut.as_mut().poll(cx) {
+            Poll::Ready(_) => {
+                println!("sleep_with_pending: Ready");
+                break;
+            }
+            Poll::Pending => println!("sleep_with_pending: Pending"),
+        }
+    }
 }
