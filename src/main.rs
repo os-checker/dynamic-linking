@@ -1,16 +1,24 @@
-use exports::tokio;
+use exports::async_ffi::FfiFuture;
+use exports::{tokio, tokio::task::JoinSet};
 
 #[tokio::main(worker_threads = 4)]
 async fn main() {
-    run_mod_a().await;
-    run_mod_b().await;
-    run_mod_c().await;
+    let mut set = JoinSet::new();
 
-    std::thread::sleep(std::time::Duration::new(1, 0));
+    // run_mod_a().await;
+    run_mod_b(&mut set);
+    run_mod_c(&mut set);
+
+    set.join_all().await;
+
     println!("done");
 }
 
-async fn run_mod_a() {
+fn spawn<F: Future<Output = ()> + Send + 'static>(fut: F, set: &mut JoinSet<()>) {
+    set.spawn(fut);
+}
+
+fn run_mod_a(set: &mut JoinSet<()>) {
     use exports::{
         DynFut, Fn, Fut, FutBuffer,
         dynify::{Dynify, PinConstruct},
@@ -27,7 +35,7 @@ async fn run_mod_a() {
     unsafe { run() };
     println!("run is running");
 
-    tokio::spawn(async { println!("😎 Task from main.") });
+    spawn(async { println!("😎 Task from main.") }, set);
     println!("main task is spawned");
 
     let task = unsafe {
@@ -36,7 +44,7 @@ async fn run_mod_a() {
             .unwrap()
     };
     println!("task is got");
-    tokio::spawn(async move { unsafe { task().await } });
+    spawn(async move { unsafe { task().await } }, set);
     println!("task is running");
 
     let task = unsafe {
@@ -45,7 +53,7 @@ async fn run_mod_a() {
             .unwrap()
     };
     println!("task is got again");
-    tokio::spawn(task());
+    spawn(task(), set);
     println!("task is running again");
 
     let hello = unsafe {
@@ -53,96 +61,114 @@ async fn run_mod_a() {
             .get::<unsafe fn() -> Fut<String>>(b"async_hello\0")
             .unwrap()
     };
-    tokio::spawn(async move {
-        let mut stack = [MaybeUninit::<u8>::uninit(); 16];
-        let mut heap = Vec::<MaybeUninit<u8>>::new();
-        let hello = unsafe { hello() };
-        dbg!(hello.layout());
-        match hello.try_init(&mut stack) {
-            Ok(fut) => _ = dbg!(fut.await),
-            Err((this, _)) => {
-                println!("Initialized on the heap");
-                match this.try_init(&mut heap) {
-                    Ok(fut) => _ = dbg!(fut.await),
-                    Err(_) => panic!("Failed to init on heap"),
+    spawn(
+        async move {
+            let mut stack = [MaybeUninit::<u8>::uninit(); 16];
+            let mut heap = Vec::<MaybeUninit<u8>>::new();
+            let hello = unsafe { hello() };
+            dbg!(hello.layout());
+            match hello.try_init(&mut stack) {
+                Ok(fut) => _ = dbg!(fut.await),
+                Err((this, _)) => {
+                    println!("Initialized on the heap");
+                    match this.try_init(&mut heap) {
+                        Ok(fut) => _ = dbg!(fut.await),
+                        Err(_) => panic!("Failed to init on heap"),
+                    }
                 }
             }
-        }
-        dbg!(heap.len(), heap.capacity());
-    });
+            dbg!(heap.len(), heap.capacity());
+        },
+        set,
+    );
     println!("hello is running");
-    tokio::spawn(async move {
-        let mut buf = FutBuffer::<16>::new();
-        dbg!(
-            unsafe { hello() }.init(&mut buf).await,
-            buf.spilled(),
-            buf.capacity(),
-            buf.len()
-        );
-    });
+    spawn(
+        async move {
+            let mut buf = FutBuffer::<16>::new();
+            dbg!(
+                unsafe { hello() }.init(&mut buf).await,
+                buf.spilled(),
+                buf.capacity(),
+                buf.len()
+            );
+        },
+        set,
+    );
 
     let take_string = unsafe {
         *mod_a
             .get::<unsafe fn(String) -> Fn!(String => DynFut<String>)>(b"take_string\0")
             .unwrap()
     };
-    tokio::spawn(async move {
-        let mut stack = [MaybeUninit::<u8>::uninit(); 32];
-        let mut heap = Vec::<MaybeUninit<u8>>::new();
-        let fut_take_string =
-            unsafe { take_string("hello".to_owned()) }.init2(&mut stack, &mut heap);
-        dbg!(fut_take_string.await);
-    });
-    tokio::spawn(async move {
-        let mut buf = FutBuffer::<32>::new();
-        dbg!(
-            unsafe { take_string("hi".to_owned()) }.init(&mut buf).await,
-            buf.spilled(),
-            buf.capacity(),
-            buf.len()
-        );
-    });
+    spawn(
+        async move {
+            let mut stack = [MaybeUninit::<u8>::uninit(); 32];
+            let mut heap = Vec::<MaybeUninit<u8>>::new();
+            let fut_take_string =
+                unsafe { take_string("hello".to_owned()) }.init2(&mut stack, &mut heap);
+            dbg!(fut_take_string.await);
+        },
+        set,
+    );
+    spawn(
+        async move {
+            let mut buf = FutBuffer::<32>::new();
+            dbg!(
+                unsafe { take_string("hi".to_owned()) }.init(&mut buf).await,
+                buf.spilled(),
+                buf.capacity(),
+                buf.len()
+            );
+        },
+        set,
+    );
 
     let concat = unsafe {
         *mod_a
             .get::<unsafe fn(String, String) -> Fn!(String, String => DynFut<String>)>(b"concat\0")
             .unwrap()
     };
-    tokio::spawn(async move {
-        let mut stack = [MaybeUninit::<u8>::uninit(); 32];
-        let mut heap = Vec::<MaybeUninit<u8>>::new();
-        let concat =
-            unsafe { concat("hello".to_owned(), " world".to_owned()) }.init2(&mut stack, &mut heap);
-        dbg!(concat.await);
-    });
+    spawn(
+        async move {
+            let mut stack = [MaybeUninit::<u8>::uninit(); 32];
+            let mut heap = Vec::<MaybeUninit<u8>>::new();
+            let concat = unsafe { concat("hello".to_owned(), " world".to_owned()) }
+                .init2(&mut stack, &mut heap);
+            dbg!(concat.await);
+        },
+        set,
+    );
 }
 
-async fn run_mod_c() {
-    use exports::async_ffi;
+type Task = extern "C" fn(u32, u32) -> FfiFuture<u32>;
 
+fn run_mod_c(set: &mut JoinSet<()>) {
     let mod_c = unsafe { libloading::Library::new("./mod_c/libmod_c.so").unwrap() };
     println!("mod_c is loaded");
     let mod_c = Box::leak(Box::new(mod_c));
 
-    type Task = unsafe extern "C" fn(u32, u32) -> async_ffi::FfiFuture<u32>;
-
-    let plugin_run: Task = unsafe { *mod_c.get(b"plugin_run\0").unwrap() };
-    unsafe {
-        dbg!(plugin_run(1, 2).await);
-    }
+    let async_add: Task = unsafe { *mod_c.get(b"async_add\0").unwrap() };
+    spawn(
+        async move {
+            println!("[mod_c] async_add: {}", async_add(2, 0).await);
+        },
+        set,
+    );
 }
 
-async fn run_mod_b() {
-    use exports::async_ffi;
-
+fn run_mod_b(set: &mut JoinSet<()>) {
     let mod_b = unsafe { libloading::Library::new("./mod_b/target/debug/libmod_b.so").unwrap() };
-    println!("mod_c is loaded");
+    println!("mod_b is loaded");
     let mod_b = Box::leak(Box::new(mod_b));
 
-    type Task = unsafe extern "C" fn(i32, i32) -> async_ffi::FfiFuture<i32>;
-
     let async_add: Task = unsafe { *mod_b.get(b"async_add\0").unwrap() };
-    unsafe {
-        dbg!(async_add(1, 2).await);
-    }
+    spawn(
+        async move {
+            println!("[mod_b] async_add: {}", async_add(1, 0).await);
+        },
+        set,
+    );
+
+    let sleep: fn(u64) -> FfiFuture<()> = unsafe { *mod_b.get(b"sleep\0").unwrap() };
+    spawn(sleep(3), set);
 }

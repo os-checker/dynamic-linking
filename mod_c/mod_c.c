@@ -74,7 +74,7 @@ static void fut_drop(void *fut) {
     free(data);
 }
 
-struct FfiFutureU32 plugin_run (uint32_t a, uint32_t b) {
+struct FfiFutureU32 async_add (uint32_t a, uint32_t b) {
     struct my_data *data = malloc(sizeof(struct my_data));
     data->handle = 0;
     data->state = 0;
