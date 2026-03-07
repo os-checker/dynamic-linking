@@ -15,4 +15,27 @@ async fn sleep(ms: u64) { sleep_(ms) }
 * 在必要性上，同步函数是否值得改为异步？
   * 异步的高效之处在于节省事件的等待时间，因此只有函数的某些操作需要花一些等待事件发生，那么才值得实现为异步，并且需要针对这些事件精心设计异步运行时。
   * 异步函数的优化问题：编译器对同步函数具有成熟的优化实现，但对异步函数则不一定，比如上面的 sleep
-    函数没有任何 await 点，但在汇编级别可能存在状态机的代码，但实际可以直接内联成同步函数 sleep_ 以减少指令和逻辑。
+    函数没有任何 await 点，但在汇编级别可能存在状态机的代码，但实际可以直接[内联][future-size]成同步函数 sleep_ 以减少指令和逻辑。
+
+[future-size]: https://github.com/os-checker/dynamic-linking?tab=readme-ov-file#rust-%E7%9A%84-future-%E8%86%A8%E8%83%80%E9%97%AE%E9%A2%98
+
+
+# 异步函数转换成同步函数
+
+由于异步函数生成一个状态机，通过 poll 来推进任务和状态，这意味着我们可以一直轮询状态机让它成为同步函数：
+
+```rust
+// 无唤醒操作，但 poll 需要一个 Context 实例
+pub fn noop_waker_ctx() -> std::task::Context<'static> {
+    std::task::Context::from_waker(std::task::Waker::noop())
+}
+
+let cx = &mut exports::noop_waker_ctx();
+let fut = pin!(sleep(2));
+loop {
+    match fut.poll(cx) {
+        Poll::Ready(_) => break,
+        Poll::Pending => println!("sleep: Pending"),
+    }
+}
+```
